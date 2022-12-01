@@ -1,0 +1,12 @@
+{
+	"name": "calendar-birthdays",
+	"authors": "Kamen Minkov",
+	"version": "1.0.0",
+	"main": "Code.ts",
+	"dependencies": {
+		"@types/google-apps-script": "1.0.56"
+	},
+	"scripts": {
+		"push-watch": "clasp push -w"
+	}
+}
