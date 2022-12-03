@@ -1,26 +1,18 @@
-const GOOGLE_BIRTHDAYS_CALENDAR_ID = getScriptProperty(
-	"GOOGLE_BIRTHDAYS_CALENDAR_ID",
-) as string;
-const DESTINATION_NOTIFICATION_CALENDAR_ID = getScriptProperty(
-	"BIRTHDAY_NOTIFICATION_CALENDAR_ID",
-) as string;
+const GOOGLE_CALENDAR_ID_SUFFIX = /.+@group.calendar.google.com/;
+const DESTINATION_NOTIFICATION_CALENDAR_URL = getScriptProperty(
+	"DESTINATION_NOTIFICATION_CALENDAR_URL",
+);
 
 type Birthday = {
 	name: string;
 	birthday: GoogleAppsScript.Contacts.DateField;
 };
 
-function init() {
-	if (GOOGLE_BIRTHDAYS_CALENDAR_ID === null) {
-		throw new Error(
-			`You haven't set the \`GOOGLE_BIRTHDAYS_CALENDAR_ID\` script property.`,
-		);
-	}
-
-	if (DESTINATION_NOTIFICATION_CALENDAR_ID === null) {
-		throw new Error(
-			`You haven't set the \`DESTINATION_NOTIFICATION_CALENDAR_ID\` script property.`,
-		);
+function init(): void {
+	if (DESTINATION_NOTIFICATION_CALENDAR_URL === null) {
+		throw "You haven't set the `DESTINATION_NOTIFICATION_CALENDAR_URL` script property.";
+	} else if (!calendarUrlIsValid(DESTINATION_NOTIFICATION_CALENDAR_URL)) {
+		throw "Calendar URL doesn't match the pattern. Make sure that it ends in `@group.calendar.google.com`.";
 	}
 
 	const contacts = ContactsApp.getContacts();
@@ -29,11 +21,11 @@ function init() {
 	// TODO: Check for existing events and only update what's needed
 	updateNotificationsCalendar(
 		contactBirthdays,
-		DESTINATION_NOTIFICATION_CALENDAR_ID,
+		DESTINATION_NOTIFICATION_CALENDAR_URL,
 	);
 }
 
-function getScriptProperty(propertyName: string) {
+function getScriptProperty(propertyName: string): string | null {
 	return PropertiesService.getScriptProperties().getProperty(propertyName);
 }
 
@@ -44,43 +36,22 @@ function getBirthdaysFromContacts(
 		.filter((c) => c.getDates().length)
 		.map((c) => {
 			const contactName = c.getFullName();
+			const birthday = c.getDates(
+				ContactsApp.Field.BIRTHDAY as unknown as string,
+			)[0]; // people normally have just one birthday, right?
 
-			const dates = c.getDates(ContactsApp.Field.BIRTHDAY as unknown as string);
+			// const D = birthday.getDay();
+			// const M = birthday.getMonth().toLocaleString();
+			// const Y = birthday.getYear();
 
-			const date = dates[0]; // people normally have just one birthday, right?
-
-			const D = date.getDay();
-			const M = date.getMonth().toLocaleString();
-			const Y = date.getYear();
-
-			// console.log(`${contactName}: ${D}/${M}/${Y}`);
-
-			return { name: contactName, birthday: date };
+			return { name: contactName, birthday: birthday };
 		});
-}
-
-function getExistingBirthdays() {
-	const birthdaysCalendar = Calendar.Calendars?.get(
-		GOOGLE_BIRTHDAYS_CALENDAR_ID,
-	);
-
-	const builtInBirthdayCalendarEvents = Calendar.Events?.list(
-		GOOGLE_BIRTHDAYS_CALENDAR_ID,
-	);
-
-	const existingItems = builtInBirthdayCalendarEvents?.items?.map((item) => {
-		return item;
-	});
-
-	const existingBirthdayNotificationEvents = Calendar.Events?.list(
-		GOOGLE_BIRTHDAYS_CALENDAR_ID,
-	);
 }
 
 function updateNotificationsCalendar(
 	birthdays: Birthday[],
 	calendarId: string,
-) {
+): void {
 	for (const event of birthdays) {
 		const eventName = event.name;
 		const start = getBirthdayDateTimeForEvent(event.birthday);
@@ -105,7 +76,7 @@ function updateNotificationsCalendar(
 		};
 
 		try {
-			Calendar.Events!.insert(newEvent, calendarId);
+			Calendar.Events?.insert(newEvent, encodeURI(calendarId));
 		} catch (err) {
 			console.error(err);
 		}
@@ -135,4 +106,8 @@ function getBirthdayDateTimeForEvent(
 function getMonthOrdinal(month: GoogleAppsScript.Base.Month): number {
 	// TODO: Find proper type for month
 	return (month as any).ordinal();
+}
+
+function calendarUrlIsValid(calendarId: string): boolean {
+	return calendarId.match(GOOGLE_CALENDAR_ID_SUFFIX) !== null;
 }

@@ -4,9 +4,11 @@
 	"version": "1.0.0",
 	"main": "Code.ts",
 	"dependencies": {
+		"@google/clasp": "2.4.2",
 		"@types/google-apps-script": "1.0.56"
 	},
 	"scripts": {
-		"push-watch": "clasp push -w"
+		"postinstall": "clasp create --type standalone && clasp push",
+		"push-watch": "clasp open && clasp push -w"
 	}
 }
